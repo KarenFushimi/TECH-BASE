@@ -10,7 +10,7 @@
 /*
 データベースへの接続
 */
-$dsn='mysql:dbname=(データベース名);host=localhost';
+$dsn='mysql:dbname=(データベース名)';
 $user = '(ユーザー名)';
 $password = '(パスワード)';
 $pdo = new PDO($dsn, $user, $password, array(PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING));
@@ -20,7 +20,7 @@ $pdo = new PDO($dsn, $user, $password, array(PDO::ATTR_ERRMODE => PDO::ERRMODE_W
 */
 $sql = "CREATE TABLE IF NOT EXISTS tbtest"
 ." ("
-. "id INT,"
+. "id INTEGER PRIMARY KEY AUTO_INCREMENT,"
 . "name char(32),"
 . "comment TEXT,"
 . "pass TEXT"
@@ -28,7 +28,7 @@ $sql = "CREATE TABLE IF NOT EXISTS tbtest"
 $stmt = $pdo->query($sql);
 
 /*
-入力済みのデータの格納
+入力済みのデータの配列への保存
 */
 
 $rows = array();
@@ -38,24 +38,54 @@ $stmt = $pdo->query($sql);
 $results = $stmt->fetchAll();
 foreach ($results as $row){
 	$rows[] = $row;
+	//echo "あ<br>";
+	/*
+	foreach ($row as $key => $value){
+		echo "[".$key."]";
+		echo $value;
+	}echo "<br>";
+	*/
 }
+
 
 /*
 最後の番号に続けて記入
 */
-
+/*
+		$id = $_POST['id_delete'];
+		$sql = 'delete from tbtest where id=:id';
+		$stmt = $pdo->prepare($sql);
+		$stmt->bindParam(':id',$id, PDO::PARAM_INT);
+		$stmt->execute();
+	$sql = 'SELECT * FROM tbtest where id=:id';
+	$stmt = $pdo->query($sql);
+	$results = $stmt->fetchAll();
+*/
 
 if(!empty($_POST['id_edit'])){
 	$numEdit = $_POST['id_edit'];
 	//パスワードを取得
-	$sql = 'SELECT * FROM tbtest';
-	$stmt = $pdo->query($sql);
-	$results = $stmt->fetchAll();
-	if($_POST['pass_edit']==$results[$numEdit-1]['pass']){
-		$edit_name=$results[$numEdit-1]['name'];
-		$edit_comment=$results[$numEdit-1]['comment'];
+	$sql = 'SELECT * FROM tbtest where id=:id';
+	$stmt = $pdo->prepare($sql);
+	$stmt->bindParam(':id',$numEdit, PDO::PARAM_INT);
+	$stmt->execute();
+	$result = $stmt->fetch();
+	
+//foreach ($results as $row){
+	//echo "あ<br>";
+	/*
+	foreach ($result as $key => $value){
+		echo "[".$key."]";
+		echo $value;
+	}echo "<br>";
+//}*/
+
+	
+	if($_POST['pass_edit']==$result['pass']){
+		$edit_name=$result['name'];
+		$edit_comment=$result['comment'];
 	}else{
-		echo "パスワードが違います";
+		$numEdit = "なし";
 	}
 }else{
 	$numEdit = "なし";
@@ -110,32 +140,59 @@ if(!empty($_POST[delete_table])){
 $sql = 'DROP TABLE tbtest';
 $stmt = $pdo->query($sql);
 
-/*
+
+if($numEdit !== "なし"){
+	/*
 データベース内にテーブルを作成
 */
 $sql = "CREATE TABLE IF NOT EXISTS tbtest"
 ." ("
-. "id INT,"
+. "id INTEGER PRIMARY KEY AUTO_INCREMENT,"
 . "name char(32),"
 . "comment TEXT,"
 . "pass TEXT"
 .");";
 $stmt = $pdo->query($sql);
+}else{
+	/*
+データベース内にテーブルを作成
+*/
+$sql = "CREATE TABLE IF NOT EXISTS tbtest"
+." ("
+. "id INTEGER PRIMARY KEY AUTO_INCREMENT,"
+. "name char(32),"
+. "comment TEXT,"
+. "pass TEXT"
+.");";
+$stmt = $pdo->query($sql);
+}
+	
 
 /*
 作成したテーブルに一度消したデータを入力
 */
-$sql = $pdo -> prepare("INSERT INTO tbtest (id,name, comment,pass) VALUES (:id,:name, :comment, :pass)");
+if($numEdit !== "なし" || $_POST['id_edit1']>=1 || !empty($_POST['id_delete'])){
+	$sql = $pdo -> prepare("INSERT INTO tbtest (id, name, comment,pass) VALUES (:id, :name, :comment, :pass)");
+}else{
+	$sql = $pdo -> prepare("INSERT INTO tbtest (name, comment,pass) VALUES (:name, :comment, :pass)");
+}
 foreach($rows as $row){
-	$sql -> bindParam(':id', $row['id'], PDO::PARAM_STR);
+
+	if($numEdit !== "なし" || $_POST['id_edit1']>=1 || !empty($_POST['id_delete'])){
+	  $sql -> bindParam(':id', $row['id'], PDO::PARAM_STR);
+	}
+	
 	$sql -> bindParam(':name', $row['name'], PDO::PARAM_STR);
 	$sql -> bindParam(':comment', $row['comment'], PDO::PARAM_STR);
 	$sql -> bindParam(':pass', $row['pass'], PDO::PARAM_STR);
 	$sql -> execute();
 }
 
+
+
 /*
-コメントの入力作成したテーブルにinsertを行ってデータを入力
+コメントの入力
+作成したテーブルにinsertを行ってデータを入力
 */
 /*
 ただし削除欄が空欄で、コメント欄にコメントがある時のみ
@@ -143,9 +200,9 @@ foreach($rows as $row){
 $num++;
 echo "<br/>";
 if($_POST['id_edit1']=="なし"&&empty($_POST['id_edit'])&&empty($_POST['id_delete'])&&!empty($_POST['comment'])){
-	echo $_POST['pass_set'].$_POST['name']."が".$_POST['comment']."を投稿しました<br/>";
-	$sql = $pdo -> prepare("INSERT INTO tbtest (id,name, comment,pass) VALUES (:id,:name, :comment, :pass)");
-	$sql -> bindParam(':id', $num, PDO::PARAM_STR);
+	echo $_POST['name']."が".$_POST['comment']."を投稿しました<br/>";
+	$sql = $pdo -> prepare("INSERT INTO tbtest (name, comment,pass) VALUES (:name, :comment, :pass)");
+	//$sql -> bindParam(':id', $num, PDO::PARAM_STR);
 	$sql -> bindParam(':name', $_POST['name'], PDO::PARAM_STR);
 	$sql -> bindParam(':comment', $_POST['comment'], PDO::PARAM_STR);
 	$sql -> bindParam(':pass', $_POST['pass_set'], PDO::PARAM_STR);
@@ -153,11 +210,16 @@ if($_POST['id_edit1']=="なし"&&empty($_POST['id_edit'])&&empty($_POST['id_dele
 }elseif(!empty($_POST['id_edit'])){
 	$numEdit = $_POST['id_edit'];
 	//パスワードを取得
-	$sql = 'SELECT * FROM tbtest';
-	$stmt = $pdo->query($sql);
-	$results = $stmt->fetchAll();
-	if($_POST['pass_edit']==$results[$numEdit-1]['pass']){
+	$sql = 'SELECT * FROM tbtest where id=:id';
+	$stmt = $pdo->prepare($sql);
+	$stmt->bindParam(':id',$numEdit, PDO::PARAM_INT);
+	$stmt->execute();
+	$result = $stmt->fetch();
+	if($_POST['pass_edit']==$result['pass']){
 		echo $numEdit."を編集中<br/>";
+	}else{
+		echo "パスワードが違います";
+		$numEdit = "なし";
 	}
 }elseif($_POST['id_edit1']!=="なし"&&!empty($_POST['id_edit1'])){
 	echo $_POST['id_edit1']."を編集しました<br/>";
@@ -168,36 +230,41 @@ if($_POST['id_edit1']=="なし"&&empty($_POST['id_edit'])&&empty($_POST['id_dele
 	$stmt -> bindParam(':comment', $_POST['comment'], PDO::PARAM_STR);
 	$stmt->execute();
 }elseif($_POST['id_delete']){
-	$numEdit = $_POST['id_delete'];
+	$numDel = $_POST['id_delete'];
 	//パスワードを取得
-	$sql = 'SELECT * FROM tbtest';
-	$stmt = $pdo->query($sql);
-	$results = $stmt->fetchAll();
-	if($_POST['pass_del']==$results[$numEdit]['pass']){
+	$sql = 'SELECT * FROM tbtest where id=:id';
+	$stmt = $pdo->prepare($sql);
+	$stmt->bindParam(':id',$numDel, PDO::PARAM_INT);
+	$stmt->execute();
+	$result = $stmt->fetch();
+	if($_POST['pass_del']==$result['pass']){
 		echo $_POST['id_delete']."を削除しました<br/>";
+		/*
+		データの削除
+		*/
+		$id = $_POST['id_delete'];
+		$sql = 'delete from tbtest where id=:id';
+		$stmt = $pdo->prepare($sql);
+		$stmt->bindParam(':id',$id, PDO::PARAM_INT);
+		$stmt->execute();
+
+		/*
+		データの削除
+		*/
+		$id = '';
+		$sql = 'delete from tbtest where id=:id';
+		$stmt = $pdo->prepare($sql);
+		$stmt->bindParam(':id',$id, PDO::PARAM_INT);
+		$stmt->execute();
+	}else{
+		echo "パスワードが違います";
 	}
 }else{
 	echo "<br/>";
 }
 echo "<br/>";
 
-/*
-データの削除
-*/
-$id = $_POST['id_delete'];
-$sql = 'delete from tbtest where id=:id';
-$stmt = $pdo->prepare($sql);
-$stmt->bindParam(':id',$id, PDO::PARAM_INT);
-$stmt->execute();
 
-/*
-データの削除
-*/
-$id = '';
-$sql = 'delete from tbtest where id=:id';
-$stmt = $pdo->prepare($sql);
-$stmt->bindParam(':id',$id, PDO::PARAM_INT);
-$stmt->execute();
 
 /*
 入力したデータをselectで表示
